@@ -1,0 +1,114 @@
+name: CI Automation
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run tests
+        id: run-tests
+        run: |
+          pytest
+        continue-on-error: true
+
+  create-issue-on-main-failure:
+    needs: test
+    if: github.ref == 'refs/heads/main' && needs.test.result == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create issue for CI failure on main
+        uses: peter-evans/create-issue@v4
+        with:
+          title: "CI failed on main branch"
+          body: |
+            The CI workflow failed on branch `main`.
+            See details here: ${{ github.run_url }}
+          labels: ci, bug
+
+  comment-docs-changed:
+    needs: test
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Check for doc changes
+        id: doccheck
+        run: |
+          git fetch origin main
+          DOCS_CHANGED=$(git diff --name-only origin/main...HEAD | grep '^docs/' || true)
+          echo "docs_changed=$DOCS_CHANGED" >> $GITHUB_OUTPUT
+
+      - name: Comment on docs changes
+        if: steps.doccheck.outputs.docs_changed != ''
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            The following documentation files were updated:
+            ```
+            ${{ steps.doccheck.outputs.docs_changed }}
+            ```
+            Please review the formatting and content.
+
+  execute-and-commit-notebooks:
+    needs: test
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Detect changed notebooks
+        id: notebooks
+        run: |
+          git fetch origin main
+          NB_FILES=$(git diff --name-only origin/main...HEAD | grep '\.ipynb$' || true)
+          echo "notebooks=$NB_FILES" >> $GITHUB_OUTPUT
+
+      - name: Run notebooks
+        if: steps.notebooks.outputs.notebooks != ''
+        run: |
+          for nb in ${{ steps.notebooks.outputs.notebooks }}; do
+            jupyter nbconvert --to notebook --execute --inplace "$nb"
+          done
+
+      - name: Commit executed notebooks
+        if: steps.notebooks.outputs.notebooks != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${{ steps.notebooks.outputs.notebooks }}
+          git commit -m "Auto-run and commit notebooks from CI"
+          git push
+
+  comment-failed-jobs:
+    if: failure() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment with failure details
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            The CI workflow has failed. Please check the logs here:
+            ${{ github.run_url }}
