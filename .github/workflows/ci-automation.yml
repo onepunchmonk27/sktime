@@ -104,11 +104,20 @@ jobs:
     if: failure() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
+      - name: Get failed jobs and errors
+        id: get-failures
+        uses: dorny/failed-jobs-summary@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Comment with failure details
         uses: peter-evans/create-or-update-comment@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ github.event.pull_request.number }}
           body: |
-            The CI workflow has failed. Please check the logs here:
-            ${{ github.run_url }}
+            The following jobs failed in CI:
+            ```
+            ${{ steps.get-failures.outputs.summary }}
+            ```
+            Please check the logs here: ${{ github.run_url }}
