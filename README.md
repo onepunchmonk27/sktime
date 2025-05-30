@@ -246,3 +246,4 @@ Thanks to all our community for all your wonderful contributions, PRs, issues, i
 * **Clean, descriptive specification syntax** -- based on modern object-oriented design principles for data science.
 * **Fair model assessment and benchmarking** -- build your models, inspect your models, check your models, and avoid pitfalls.
 * **Easily extensible** -- easy extension templates to add your own algorithms compatible with sktime's API.
+"# Dummy change to trigger CI" 
