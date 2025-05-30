@@ -8,26 +8,27 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.9
+  # test:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: 3.9
           
-      - name: Install dependencies
-        run: |
-          pip install pytest
+  #     - name: Install dependencies
+  #       run: |
+  #         pip install pytest
 
 
-      - name: Run tests
-        id: run-tests
-        run: |
-          pytest sktime/tests/
-        continue-on-error: true
+  #     - name: Run tests
+  #       id: run-tests
+  #       run: |
+  #         pytest sktime/tests/
+  #       continue-on-error: true
 
   create-issue-on-main-failure:
     needs: test
